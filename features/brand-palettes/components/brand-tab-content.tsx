@@ -2,6 +2,7 @@
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { BrandPalettesSection } from "./brand-palettes-section";
+import { RolesSection } from "./roles-section";
 
 /**
  * The editor's "Brand" tab. Each entry is one self-contained `ControlSection`; to add a section
@@ -9,6 +10,7 @@ import { BrandPalettesSection } from "./brand-palettes-section";
  */
 const BRAND_SECTIONS: { id: string; Component: React.ComponentType }[] = [
   { id: "palettes", Component: BrandPalettesSection },
+  { id: "roles", Component: RolesSection },
 ];
 
 export function BrandTabContent() {

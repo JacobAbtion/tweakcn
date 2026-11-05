@@ -4,21 +4,28 @@ import { useCallback, useMemo } from "react";
 import { useEditorStore } from "@/store/editor-store";
 import type { ThemeEditorState } from "@/types/editor";
 import * as ops from "./palette";
+import { startRoleSync } from "./role-sync";
+import * as roles from "./roles";
 import type { ScaleStep } from "./scale";
 import type { BrandPalette, BrandRef, Mode } from "./types";
 
 const EMPTY: BrandPalette[] = [];
+
+// Auto tokens follow role assignments after every editor state change.
+startRoleSync();
+
+const applyToStore = (fn: (state: ThemeEditorState) => ThemeEditorState) => {
+  const { themeState, setThemeState } = useEditorStore.getState();
+  const next = fn(themeState);
+  if (next !== themeState) setThemeState(next);
+};
 
 /** Read and change brand palettes in the editor store. Every change goes through `setThemeState`, so it
  * is persisted, undoable, and shows up in the preview like any other theme edit. */
 export function useBrandPalettes() {
   const palettes = useEditorStore((s) => s.themeState.brandPalettes) ?? EMPTY;
 
-  const apply = useCallback((fn: (state: ThemeEditorState) => ThemeEditorState) => {
-    const { themeState, setThemeState } = useEditorStore.getState();
-    const next = fn(themeState);
-    if (next !== themeState) setThemeState(next);
-  }, []);
+  const apply = applyToStore;
 
   const actions = useMemo(
     () => ({
@@ -81,4 +88,45 @@ export function useActiveBrandRef(token: string | undefined): BrandRef | undefin
   return useEditorStore((s) =>
     token ? ops.getActiveRef(s.themeState, s.themeState.currentMode, token) : undefined
   );
+}
+
+/** Role assignments and actions for the Roles section. */
+export function useBrandRoles() {
+  const brandRoles = useEditorStore((s) => s.themeState.brandRoles);
+  const manualCount = (brandRoles?.manual.light.length ?? 0) + (brandRoles?.manual.dark.length ?? 0);
+  const actions = useMemo(
+    () => ({
+      assign: (role: roles.RoleId, paletteId: string | null) =>
+        applyToStore((s) => roles.assignRole(s, role, paletteId)),
+      setWhiteBackground: (white: boolean) => applyToStore((s) => roles.setWhiteBackground(s, white)),
+      resetAllToAuto: () => applyToStore((s) => roles.resetAllToAuto(s)),
+    }),
+    []
+  );
+  return {
+    assignments: brandRoles?.assignments ?? {},
+    whiteBackground: !!brandRoles?.whiteBackground,
+    manualCount,
+    ...actions,
+  };
+}
+
+/** Auto/Manual status of every role-driven token in the current mode, plus a reset-to-Auto action. */
+export function useTokenRoleStatuses() {
+  const json = useEditorStore((s) => {
+    const { themeState } = s;
+    const out: Record<string, roles.TokenRoleStatus> = {};
+    for (const token of Object.keys(roles.TOKEN_RULES)) {
+      const status = roles.getTokenRoleStatus(themeState, themeState.currentMode, token);
+      if (status) out[token] = status;
+    }
+    return JSON.stringify(out);
+  });
+  const statuses = useMemo(() => JSON.parse(json) as Record<string, roles.TokenRoleStatus>, [json]);
+  const resetToAuto = useCallback(
+    (token: string) =>
+      applyToStore((s) => roles.resetTokenToAuto(s, s.currentMode, token)),
+    []
+  );
+  return { statuses, resetToAuto };
 }

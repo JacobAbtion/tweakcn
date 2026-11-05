@@ -1,8 +1,9 @@
-// Modified by Abtion: brand-step linking in colour pickers.
+// Modified by Abtion: brand-step linking and role status (Auto/Manual) in colour pickers.
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useBrandTokenLinks } from "@/features/brand-palettes/use-brand-palettes";
+import { RoleStatus } from "@/features/brand-palettes/components/role-status";
+import { useBrandTokenLinks, useTokenRoleStatuses } from "@/features/brand-palettes/use-brand-palettes";
 import { RefreshCw, Search, X } from "lucide-react";
 import ColorPicker from "@/components/editor/color-picker";
 import ControlSection from "@/components/editor/control-section";
@@ -144,6 +145,7 @@ export function ColorsTabContent({ currentStyles, updateStyle, updateStyles }: C
   const [search, setSearch] = useState("");
   const [sidebarSyncEnabled, setSidebarSyncEnabled] = useState(false);
   const { liveRefs, linkTokens } = useBrandTokenLinks();
+  const { statuses, resetToAuto } = useTokenRoleStatuses();
   const linkBrandRef = useCallback(
     (key: keyof ThemeStyleProps, ref: string) => {
       const sidebarKey = sidebarSyncEnabled ? BASE_TO_SIDEBAR_MAP[key] : undefined;
@@ -282,6 +284,11 @@ export function ColorsTabContent({ currentStyles, updateStyle, updateStyles }: C
                 label={color.label}
                 brandRef={liveRefs[color.key]}
                 onBrandRef={(ref) => linkBrandRef(color.key, ref)}
+                status={
+                  statuses[color.key] ? (
+                    <RoleStatus status={statuses[color.key]} onReset={() => resetToAuto(color.key)} />
+                  ) : undefined
+                }
               />
             ))}
           </ControlSection>

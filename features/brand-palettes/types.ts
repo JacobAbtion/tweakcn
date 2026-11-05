@@ -1,3 +1,4 @@
+import type { BrandRoles } from "./roles";
 import type { ScaleStep } from "./scale";
 
 export type { ScaleStep } from "./scale";
@@ -44,4 +45,6 @@ export type Mode = "light" | "dark";
 export type BrandPaletteThemeFields = {
   brandPalettes?: BrandPalette[];
   brandRefs?: BrandRefs;
+  /** Role assignments and Auto/Manual bookkeeping (see `roles.ts`). */
+  brandRoles?: BrandRoles;
 };

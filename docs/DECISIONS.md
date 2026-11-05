@@ -63,3 +63,50 @@ One line each: what, why.
 - **Names that are blocked:** Tailwind colour names (incl. black/white/transparent/current/inherit and the newer mauve/olive/mist/taupe), shadcn token roots (`primary`, `chart`, `sidebar`, …, so you never get `primary-500` next to `primary`), names not starting with a letter, and names ending in `-<number>` (would read like a step).
 - **Slugs transliterate Danish letters** (æ→ae, ø→o, å→a) and strip accents.
 - **Palettes and refs are part of `ThemeEditorState`** — so they persist in `localStorage` (`editor-storage`) with the working theme and take part in undo/redo, with no store changes.
+
+### Roles (palettes drive the whole theme)
+
+- **Data:** `brandRoles` on `ThemeEditorState` — `assignments` (role → palette id), `whiteBackground`, `auto[mode][token]` (value, brand ref, label, warning the rule last wrote) and `manual[mode]` (tokens taken over). Rules and resolution are pure (`features/brand-palettes/roles.ts`, 25 tests in `roles.test.ts`).
+- **Auto tokens write the same `brandRefs` as manual links** — so an Auto token is "linked" to e.g. `forest-green-700` exactly like a hand-picked one, and the Phase 2 exports (which read `brandRefs`) will output `var(--forest-green-700)` / DTCG aliases for both. Tokens resolved to white store no ref (plain value).
+- **Manual detection without touching upstream code paths:** a role-driven token is Manual when its value differs from what its rule last wrote, *unless* it still points at the same brand step (a palette edit moved it). Once Manual it stays Manual until "↺ Auto" (per token) or "Reset all to Auto" (Roles section). Linking a different brand step by hand also makes it Manual.
+- **One sync function runs after every editor change** (`role-sync.ts`, a zustand subscription started when the brand feature loads). It is idempotent and lands inside tweakcn's 500 ms history window, so it never adds an undo step. Effect: Auto foregrounds re-pick contrast even when you change their background manually; palette step edits flow through; undo/redo stay consistent.
+- **Applying a preset / HSL adjustment / AI theme turns role-driven tokens Manual** (their values were replaced). Palettes and assignments survive; "Reset all to Auto" brings the roles back. Accepted: it never silently overwrites what a preset just set.
+- **Unassigning a role leaves its tokens at their current colours** (no revert), and they stop being tracked. Deleting an assigned palette unassigns the role the same way.
+- **Sidebar tokens mirror the *final* value of their main token** (including a manual one), with its reference — so `sidebar-primary` follows a manually set `primary` too.
+- **"Auto (contrast)" foregrounds choose the highest contrast of white / palette 50 / palette 950** (spec, taken literally). In practice this is white or 950; the tinted 50 only wins when it is the best. If the best is under 4.5:1 the token shows a warning.
+- **Preferred foregrounds** (`secondary-foreground` 900/100, `accent-foreground` 900/100) are used when they reach 4.5:1, otherwise the auto-contrast pick.
+- **Light-mode primary is always the exact brand colour** (anchor step). If it is under 3:1 against the background (e.g. a bright orange or pale yellow brand), it is kept and a warning is shown instead of changing the brand colour.
+- **"Pure white" background option lives on the Neutral role** and applies to `background`, `card` and `popover` in light mode (cards on white stay white). Dark mode is unaffected.
+- **Warnings** show as a ⚠ next to "Auto · …" on the token (hover for details) and are listed in the Roles section for the current mode.
+- **Dev-only `window.__editorStore`** (set in `role-sync.ts`, not in production builds) for browser testing.
+- **Hover states unchanged** — shadcn components keep `bg-primary/90` etc.; dedicated hover tokens noted in IDEAS.md for Phase 4.
+
+#### Token rules (final)
+
+Tuned from the starting table, verified with `npx tsx features/brand-palettes/dev/debug-roles.ts` on the five sample colours as Primary with warm and cool neutrals.
+
+| Token | Role | Light | Dark |
+|---|---|---|---|
+| background | Neutral | 50 (or white) | 950 |
+| card, popover | Neutral | 50 (or white) | 900 |
+| foreground, card-foreground, popover-foreground | Neutral | 950 | 50 |
+| muted | Neutral | 100 | 800 |
+| muted-foreground | Neutral | 600, darker until 4.5:1 on background *(tuned: was 500; in practice lands on 700)* | 400, lighter until 4.5:1 on background |
+| border, input | Neutral | 200 | 800 |
+| primary | Primary | anchor (exact brand colour; warning if < 3:1 on background) | anchor, lighter until 3:1 on background |
+| primary-foreground | Primary | auto contrast on primary | auto contrast on primary |
+| ring | Primary | 400 | 500 |
+| secondary | Secondary | 100 | 800 |
+| secondary-foreground | Secondary | 900 if ≥ 4.5:1, else auto contrast | 100 if ≥ 4.5:1, else auto contrast |
+| accent | Secondary | 100 | 800 |
+| accent-foreground | Secondary | 900 if ≥ 4.5:1, else auto contrast | 100 if ≥ 4.5:1, else auto contrast |
+| destructive | Destructive | 600, darker until 3:1 on background | 400, lighter until 3:1 on background *(tuned: was 500 — a mid red can't carry 4.5:1 text with white/50/950)* |
+| destructive-foreground | Destructive | auto contrast | auto contrast |
+| chart-1 | Primary | 600 | 400 |
+| chart-2 | Secondary | 400 | 300 |
+| chart-3 | Primary | 800 | 200 |
+| chart-4 | Secondary | 700 | 600 |
+| chart-5 | Primary | 300 | 700 |
+| sidebar, sidebar-foreground, sidebar-primary(-foreground), sidebar-accent(-foreground), sidebar-border, sidebar-ring | as their main token | = background, foreground, primary(-foreground), accent(-foreground), border, ring | same |
+
+"auto contrast" = highest contrast of white / palette 50 / palette 950; warning if under 4.5:1. Charts alternate palette and lightness so neighbouring series differ in both hue and lightness.

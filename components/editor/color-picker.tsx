@@ -1,4 +1,4 @@
-// Modified by Abtion: shows and accepts brand palette references (e.g. "forest-green-700").
+// Modified by Abtion: shows and accepts brand palette references (e.g. "forest-green-700"), role status slot.
 import { DEBOUNCE_DELAY } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useColorControlFocus } from "@/store/color-control-focus-store";
@@ -14,9 +14,11 @@ type BrandProps = {
   brandRef?: string;
   /** Try to link the token to a brand step; returns false if `ref` isn't one. */
   onBrandRef?: (ref: string) => boolean;
+  /** Extra line under the label (brand role status: "Auto · Primary 700" / "Manual"). */
+  status?: React.ReactNode;
 };
 
-const ColorPicker = ({ color, onChange, label, name, brandRef, onBrandRef }: ColorPickerProps & BrandProps) => {
+const ColorPicker = ({ color, onChange, label, name, brandRef, onBrandRef, status }: ColorPickerProps & BrandProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [shouldAnimate, setShouldAnimate] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -123,7 +125,14 @@ const ColorPicker = ({ color, onChange, label, name, brandRef, onBrandRef }: Col
         />
       </div>
 
-      <span className="text-foreground min-w-0 shrink-0 text-[13px] font-medium">{label}</span>
+      {status ? (
+        <div className="flex min-w-0 shrink-0 flex-col gap-0.5 py-0.5">
+          <span className="text-foreground text-[13px] font-medium">{label}</span>
+          {status}
+        </div>
+      ) : (
+        <span className="text-foreground min-w-0 shrink-0 text-[13px] font-medium">{label}</span>
+      )}
 
       <div className="flex min-w-0 flex-1 items-center justify-end gap-1">
         {brandRef && (
