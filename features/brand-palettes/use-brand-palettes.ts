@@ -45,6 +45,37 @@ export function useBrandPalettes() {
   return { palettes, ...actions };
 }
 
+/**
+ * For the Colors tab: the live references of all tokens in the current mode, and a function that links
+ * tokens to a ref (returns false when the text isn't a known brand step, so callers can fall back).
+ */
+export function useBrandTokenLinks() {
+  const refs = useEditorStore((s) => {
+    const { themeState } = s;
+    const mode = themeState.currentMode;
+    const live: Record<string, BrandRef> = {};
+    for (const token of Object.keys(themeState.brandRefs?.[mode] ?? {})) {
+      const ref = ops.getActiveRef(themeState, mode, token);
+      if (ref) live[token] = ref;
+    }
+    return JSON.stringify(live);
+  });
+  const liveRefs = useMemo(() => JSON.parse(refs) as Record<string, BrandRef>, [refs]);
+  const { link } = useBrandPalettes();
+
+  const linkTokens = useCallback(
+    (tokens: string[], ref: BrandRef) => {
+      const { themeState } = useEditorStore.getState();
+      if (ops.resolveRef(themeState.brandPalettes, ref) === undefined) return false;
+      link(themeState.currentMode, tokens, ref);
+      return true;
+    },
+    [link]
+  );
+
+  return { liveRefs, linkTokens };
+}
+
 /** The live brand reference of a token in the current mode, e.g. "forest-green-700". */
 export function useActiveBrandRef(token: string | undefined): BrandRef | undefined {
   return useEditorStore((s) =>
