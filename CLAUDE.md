@@ -133,6 +133,32 @@ Follow tweakcn's existing editor UI patterns and components exactly; this should
 
 ---
 
+## Phase 1b — Brand tab and Roles (built; see docs/DECISIONS.md for details)
+
+### Preview-only theming
+The editor chrome always uses tweakcn's default neutral theme (following the light/dark toggle). Only the preview area gets the edited theme, including overlays (dialogs, dropdowns, popovers, tooltips, sheets) opened from the preview, via a themed portal container (`features/preview-scope/`). Keep it that way when adding UI.
+
+### Brand tab
+- "Brand" is the **first** tab in the left panel (before Colors, Typography, Other, Generate) and the **default** tab when the editor opens.
+- It contains, in order: **Brand palettes**, **Roles**. It is a list of sections (`features/brand-palettes/components/brand-tab-content.tsx`), so the future **Fonts** section (custom font upload, Roadmap 3) is added as one more entry. Don't build a placeholder for it.
+
+### Roles: palettes drive the whole theme
+- Roles: **Primary**, **Secondary**, **Neutral** (backgrounds, text, borders, muted surfaces), **Destructive** (optional). Each role can be assigned one brand palette or left empty. An unassigned role leaves its tokens exactly as they are.
+- Every shadcn colour token has a default rule: a role plus a step for light and a step for dark. The final table is in docs/DECISIONS.md ("Token rules (final)"); change rules there and in `features/brand-palettes/roles.ts` together.
+- Neutral has a light-mode background option: "Neutral 50" or "pure white" (applies to background, card, popover).
+- **Contrast rules:**
+  - Light-mode primary = the palette's anchor step (the client's exact brand colour). If it is under 3:1 against the background, keep it and show a warning.
+  - "Auto (contrast)" foregrounds pick from white, the palette's 50 or its 950, whichever has the highest contrast; if that is under WCAG 4.5:1, show a warning on the token.
+  - In dark mode, if the anchor step has less than 3:1 against the dark background, move to the nearest lighter step that meets 3:1. Same logic for secondary and destructive where they are solid colours.
+- **Auto vs. Manual tokens:**
+  - Every token linked to a role is "Auto" by default and shows its rule (e.g. "Auto · Primary 700").
+  - Picking a different colour for it in the Colors tab makes it "Manual"; it keeps that choice when roles change. A reset action returns it to Auto (per token, and "Reset all to Auto" in Roles). Same behaviour as locked palette steps.
+  - Assigning or swapping a palette updates all Auto tokens instantly, in light and dark mode.
+  - Auto tokens are stored as references to the primitive steps they resolve to (`brandRefs`), exactly like manually linked tokens, so exports output `var(--forest-green-700)` / DTCG aliases for both.
+- **Hover states:** shadcn components define hover in-component (e.g. `bg-primary/90`); keep it, don't modify components. Dedicated hover tokens per role belong to the Phase 4 component-token work (docs/IDEAS.md).
+
+---
+
 ## Phase 2 — Exports
 
 Extend tweakcn's existing export UI. Build all exports from the same resolved theme data.
