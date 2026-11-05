@@ -35,6 +35,12 @@ One line each: what, why.
 - **Hand-typed step colours are stored as given (converted to OKLCH), not gamut-mapped** — the designer's explicit choice wins; hex input keeps exact round-tripping.
 - **IDs use `crypto.randomUUID()`** (fallback to a timestamp+random id).
 - **Pre-existing lint errors in `types/editor.ts`** (`any` on lines 40–41, upstream code, outside `next lint`'s default folders) are left alone; we lint `features/` explicitly with `npx eslint features`.
+- **UI placement** — "Brand palettes" is the first section of the Colors tab (tweakcn's `ControlSection`, expanded, with an "+ Add" header action styled like the Sidebar "Sync" button). Hidden while the colour search box has text.
+- **Step editing happens in a popover** on each swatch (picker, hex/oklch field, contrast vs white and black with AA/AAA labels, "Used by …" list, Reset when edited). Swatch tooltips also show contrast. Anchor = small dot, edited = lock icon; the palette header shows the number of edited steps.
+- **Palette menu** (⋯): Rename, Change base colour, Reset all overrides, Delete. Delete has no confirmation dialog because tweakcn's undo restores it, links included.
+- **Brand group lists one group per palette** ("Brand · Forest Green") above Tailwind's colours in both list and grid views; brand steps are searchable by ref and palette name.
+- **Linked tokens show the ref in their text field** (e.g. `forest-green-700`) plus a link icon; typing a ref there links it too. Typing any other colour unlinks.
+- **Linking respects the Sidebar "Sync" toggle** — linking a base token while Sync is on also links its sidebar counterpart.
 - **Dev lab page at `/dev/brand-scales`** — returns 404 when `NODE_ENV=production`.
 - **Names that are blocked:** Tailwind colour names (incl. black/white/transparent/current/inherit and the newer mauve/olive/mist/taupe), shadcn token roots (`primary`, `chart`, `sidebar`, …, so you never get `primary-500` next to `primary`), names not starting with a letter, and names ending in `-<number>` (would read like a step).
 - **Slugs transliterate Danish letters** (æ→ae, ø→o, å→a) and strip accents.
