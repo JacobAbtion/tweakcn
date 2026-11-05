@@ -41,7 +41,17 @@ One line each: what, why.
 - **Brand group lists one group per palette** ("Brand · Forest Green") above Tailwind's colours in both list and grid views; brand steps are searchable by ref and palette name.
 - **Linked tokens show the ref in their text field** (e.g. `forest-green-700`) plus a link icon; typing a ref there links it too. Typing any other colour unlinks.
 - **Linking respects the Sidebar "Sync" toggle** — linking a base token while Sync is on also links its sidebar counterpart.
-- **Dev lab page at `/dev/brand-scales`** — returns 404 when `NODE_ENV=production`.
+- **Dev lab page at `/dev/brand-scales`**
+
+## Phase 1 adjustments
+
+### Only the preview is themed
+
+- **Page root gets tweakcn's default neutral theme** (`components/theme-provider.tsx` → `neutralEditorState`, and `components/theme-script.tsx` for the pre-load paint). It still follows the editor's light/dark toggle, which is the edited theme's `currentMode`, so the editor and the preview always show the same mode.
+- **The edited theme is scoped to the preview area** — `features/preview-scope/PreviewThemeScope` replaces the preview `<section>` in `theme-preview-panel.tsx` and writes the theme's CSS variables onto it (own `applyScopedTheme`, because upstream `applyThemeToElement` also writes shadows and the `dark` class to the document root). Works because globals.css uses `@theme inline`, so utilities read `var(--primary)` at the element. The scope also sets `bg-background text-foreground font-sans tracking-normal`, which used to come from `body`.
+- **Portals: a themed, body-level portal container + React context** — `PreviewThemeScope` creates `<div data-preview-portal-root>` in `<body>`, applies the same theme to it, and provides it via context. The 12 portal-using `components/ui/*` files pass `container={usePreviewPortalContainer()}` to their Radix/vaul `Portal`. Outside the preview the context is `undefined`, so the editor's own popovers render into `<body>` as before. Chosen over a portal container *inside* the preview so overlays aren't clipped by the preview's `overflow: hidden` / stacking context.
+- **Verified:** primary, background and radius change only in the preview; dropdown, select, sheet (dialog) and tooltip opened from the preview are themed; the editor's colour popover stays neutral; light/dark both work.
+- **Not themed any more (accepted):** the homepage preset showcase, `/themes/[id]` and the AI chat theme previews relied on the page-level theme and now render neutral. None are part of our workflow (the last two need DB/AI). Sonner toasts render at page level, so a toast triggered from the preview is neutral. — returns 404 when `NODE_ENV=production`.
 - **Names that are blocked:** Tailwind colour names (incl. black/white/transparent/current/inherit and the newer mauve/olive/mist/taupe), shadcn token roots (`primary`, `chart`, `sidebar`, …, so you never get `primary-500` next to `primary`), names not starting with a letter, and names ending in `-<number>` (would read like a step).
 - **Slugs transliterate Danish letters** (æ→ae, ø→o, å→a) and strip accents.
 - **Palettes and refs are part of `ThemeEditorState`** — so they persist in `localStorage` (`editor-storage`) with the working theme and take part in undo/redo, with no store changes.

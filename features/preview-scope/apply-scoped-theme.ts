@@ -1,0 +1,40 @@
+import { COMMON_STYLES, defaultThemeState } from "@/config/theme";
+import type { ThemeEditorState } from "@/types/editor";
+import { applyStyleToElement } from "@/utils/apply-style-to-element";
+import { colorFormatter } from "@/utils/color-converter";
+import { getShadowMap } from "@/utils/shadows";
+
+const isCommon = (key: string) => (COMMON_STYLES as readonly string[]).includes(key);
+
+/**
+ * Write a theme's CSS variables onto one element (and nothing else).
+ *
+ * Same output as tweakcn's `applyThemeToElement`, but without its side effects on the document root
+ * (dark class, shadow variables), so it can scope a theme to the preview area only.
+ */
+export function applyScopedTheme(themeState: ThemeEditorState, element: HTMLElement) {
+  const mode = themeState.currentMode;
+  const light = { ...defaultThemeState.styles.light, ...themeState.styles.light };
+  const current = { ...defaultThemeState.styles[mode], ...themeState.styles[mode] };
+
+  for (const [key, value] of Object.entries(light)) {
+    if (isCommon(key) && typeof value === "string") applyStyleToElement(element, key, value);
+  }
+  for (const [key, value] of Object.entries(current)) {
+    if (!isCommon(key) && typeof value === "string") {
+      applyStyleToElement(element, key, colorFormatter(value, "hsl", "4"));
+    }
+  }
+  for (const [name, value] of Object.entries(getShadowMap(themeState))) {
+    applyStyleToElement(element, name, value);
+  }
+}
+
+/** The editor chrome's fixed theme: tweakcn's default neutral theme, in the current light/dark mode. */
+export function neutralEditorState(themeState: ThemeEditorState): ThemeEditorState {
+  return {
+    ...themeState,
+    styles: defaultThemeState.styles,
+    hslAdjustments: defaultThemeState.hslAdjustments,
+  };
+}
