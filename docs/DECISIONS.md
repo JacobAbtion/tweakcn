@@ -110,3 +110,7 @@ Tuned from the starting table, verified with `npx tsx features/brand-palettes/de
 | sidebar, sidebar-foreground, sidebar-primary(-foreground), sidebar-accent(-foreground), sidebar-border, sidebar-ring | as their main token | = background, foreground, primary(-foreground), accent(-foreground), border, ring | same |
 
 "auto contrast" = highest contrast of white / palette 50 / palette 950; warning if under 4.5:1. Charts alternate palette and lightness so neighbouring series differ in both hue and lightness.
+
+### Fixes
+
+- **Input borders follow the `input` token** — upstream `app/globals.css` had an unlayered `* { border-color: var(--color-border) }`. Unlayered CSS beats Tailwind v4's utility layer, so it overrode `border-input`, `border-ring` (focus) and `border-destructive` (invalid) on every component; editing `input` only changed the dark-mode field background (`dark:bg-input/30`). Removed that one declaration; the default border colour still comes from `@apply border-border` in `@layer base`, so components without an explicit border colour look the same. Affects the editor chrome too (its own inputs now use its neutral `input` value, as tweakcn's components intend).
