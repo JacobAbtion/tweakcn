@@ -20,6 +20,14 @@ One line each: what, why.
 - **Anchor OKLCH string uses as many decimals as needed (4–12)** to round-trip to the exact hex *and* stay inside sRGB (edge colours like `#00FF00` need more than 4).
 - **Lightness bounds 0.995 (max) / 0.13 (min)** — when enforcing the 0.015 gap pushes a step past these (e.g. a near-white brand colour anchored at 100), the free steps between the anchor and the end are spaced evenly in the room left instead.
 - **Anchor ties go to the lighter step.**
+- **Scale curve tuning (final values, `DEFAULT_SCALE_CONFIG` in `features/brand-palettes/scale.ts`)** — scored on 10 brand colours by how even the perceptual distance (OKLab ΔE) is between neighbouring steps 100→950. The spec's starting values had a visible jump at step 400 (300→400 lightness gap of 0.10). Tuned values cut the unevenness (coefficient of variation) from 0.21 to 0.12; the biggest remaining jump is next to the brand colour itself, which is fixed by definition. Helper script: `npx tsx features/brand-palettes/dev/compare.ts`.
+
+  | Step | 50 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | 950 |
+  |---|---|---|---|---|---|---|---|---|---|---|---|
+  | L | 0.977 | 0.937 | 0.877 | 0.800 | 0.716 | 0.635 | 0.556 | 0.480 | 0.410 | 0.347 | 0.270 |
+  | m | 0.14 | 0.30 | 0.54 | 0.78 | 0.92 | 1.0 | 1.0 | 0.97 | 0.88 | 0.78 | 0.68 |
+- **Muted brand colours stay muted** — chroma is scaled relative to the brand colour (as specced), so a dusty dark green gives a sage-like 500 rather than a vivid Tailwind-emerald 500. Kept deliberately: it preserves the brand's character. Revisit if Jacob wants more vivid mid-tones.
+- **Dev lab page at `/dev/brand-scales`** — returns 404 when `NODE_ENV=production`.
 - **Names that are blocked:** Tailwind colour names (incl. black/white/transparent/current/inherit and the newer mauve/olive/mist/taupe), shadcn token roots (`primary`, `chart`, `sidebar`, …, so you never get `primary-500` next to `primary`), names not starting with a letter, and names ending in `-<number>` (would read like a step).
 - **Slugs transliterate Danish letters** (æ→ae, ø→o, å→a) and strip accents.
 - **Palettes and refs are part of `ThemeEditorState`** — so they persist in `localStorage` (`editor-storage`) with the working theme and take part in undo/redo, with no store changes.
