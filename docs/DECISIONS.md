@@ -27,6 +27,14 @@ One line each: what, why.
   | L | 0.977 | 0.937 | 0.877 | 0.800 | 0.716 | 0.635 | 0.556 | 0.480 | 0.410 | 0.347 | 0.270 |
   | m | 0.14 | 0.30 | 0.54 | 0.78 | 0.92 | 1.0 | 1.0 | 0.97 | 0.88 | 0.78 | 0.68 |
 - **Muted brand colours stay muted** — chroma is scaled relative to the brand colour (as specced), so a dusty dark green gives a sage-like 500 rather than a vivid Tailwind-emerald 500. Kept deliberately: it preserves the brand's character. Revisit if Jacob wants more vivid mid-tones.
+- **Editing one step changes only that step** — it gets locked; nothing else regenerates. Regeneration only happens on a base colour change or a Reset. Otherwise editing the anchor swatch would silently move the brand hex to a neighbour.
+- **Hand-edited (locked) steps don't push generated steps around** — the curve is computed as if nothing were locked and locked values are swapped in at the end. An odd override (e.g. 900 set to a light colour) stays a local exception instead of reflowing the whole palette. Consequence: with overrides, strict lightness order is the user's responsibility.
+- **Anchor edge cases** — base colour change with the new natural anchor locked → the nearest unlocked step (tie → closest target L) holds the base hex (spec rule). Reset step / Reset all → keep the current anchor if the natural one is still locked, so resetting one step never moves the brand colour around. Resetting the anchor step itself puts the base hex back there.
+- **Reset step regenerates the whole palette from the same inputs** — results are deterministic, so other unlocked steps only change when the anchor moves back (e.g. after resetting a locked natural anchor).
+- **References are strings like `forest-green-700`**, rewritten when a palette is renamed. Not palette ids: matches the CSS/Figma names we'll export, and it stays open to a third layer (component tokens) using the same shape.
+- **Hand-typed step colours are stored as given (converted to OKLCH), not gamut-mapped** — the designer's explicit choice wins; hex input keeps exact round-tripping.
+- **IDs use `crypto.randomUUID()`** (fallback to a timestamp+random id).
+- **Pre-existing lint errors in `types/editor.ts`** (`any` on lines 40–41, upstream code, outside `next lint`'s default folders) are left alone; we lint `features/` explicitly with `npx eslint features`.
 - **Dev lab page at `/dev/brand-scales`** — returns 404 when `NODE_ENV=production`.
 - **Names that are blocked:** Tailwind colour names (incl. black/white/transparent/current/inherit and the newer mauve/olive/mist/taupe), shadcn token roots (`primary`, `chart`, `sidebar`, …, so you never get `primary-500` next to `primary`), names not starting with a letter, and names ending in `-<number>` (would read like a step).
 - **Slugs transliterate Danish letters** (æ→ae, ø→o, å→a) and strip accents.

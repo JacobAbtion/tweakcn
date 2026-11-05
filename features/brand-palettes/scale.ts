@@ -174,6 +174,12 @@ export function chooseAnchorStep(
 export type GenerateScaleOptions = {
   /** Steps with a fixed (manually edited) value. These are returned untouched. */
   locked?: Partial<Record<ScaleStep, string>>;
+  /**
+   * Anchor to use when the natural anchor step is locked. Without it, the nearest unlocked step
+   * becomes the anchor (used when the base colour changes). Reset actions pass the palette's
+   * current anchor so resetting one step doesn't move the brand colour around.
+   */
+  fallbackAnchor?: ScaleStep;
   config?: ScaleConfig;
 };
 
@@ -186,10 +192,11 @@ export type GeneratedScale = {
  * Generate a 50–950 scale from one brand colour.
  *
  * 1. baseHex → OKLCH (L_b, C_b, H_b)
- * 2. anchor = step with target L closest to L_b (skipping locked steps); it holds baseHex exactly
+ * 2. anchor = step with target L closest to L_b (see `fallbackAnchor` for locked anchors); it holds
+ *    baseHex exactly (unless that step itself is locked)
  * 3. bend the lightness curve around the anchor: L_i = L_target_i + delta × w_i, with w falling
  *    linearly from 1 at the anchor to 0 at steps 50 and 950
- * 4. enforce strictly decreasing lightness (min gap), moving only free steps
+ * 4. enforce strictly decreasing lightness (min gap), never moving the anchor
  * 5. chroma taper relative to the anchor; neutral inputs keep C_b everywhere; hue constant
  * 6. gamut-map every generated step into sRGB
  */
@@ -200,54 +207,37 @@ export function generateScale(baseHex: string, options: GenerateScaleOptions = {
   if (!base) throw new Error(`Invalid colour: ${baseHex}`);
 
   const { l: Lb, c: Cb, h: Hb } = base as Required<Pick<Oklch, "l" | "c" | "h">>;
-  const anchorStep = chooseAnchorStep(Lb, locked, config) ?? detectAnchorStep(Lb, config);
+  const natural = detectAnchorStep(Lb, config);
+  const anchorStep =
+    locked[natural] !== undefined && options.fallbackAnchor
+      ? options.fallbackAnchor
+      : (chooseAnchorStep(Lb, locked, config) ?? natural);
   const a = indexOfStep(anchorStep);
   const n = SCALE_STEPS.length - 1;
 
-  // Lightness of locked steps is fixed; the anchor is fixed at L_b.
-  const fixedL: (number | null)[] = SCALE_STEPS.map((step) => {
-    const v = locked[step];
-    if (v === undefined) return null;
-    return parseToOklch(v)?.l ?? null;
-  });
-  fixedL[a] = Lb;
-  const isFixed = (i: number) => fixedL[i] !== null;
+  // The curve is computed as if nothing were locked: locked steps are exceptions that are swapped in
+  // at the end, they don't push the generated steps around. Only the anchor is fixed (at L_b).
 
   // 3. Bend the curve around the anchor.
   const delta = Lb - config.lightness[anchorStep];
   const L = SCALE_STEPS.map((step, i) => {
-    if (isFixed(i)) return fixedL[i] as number;
     const w = i < a ? (a === 0 ? 0 : i / a) : i > a ? (a === n ? 0 : (n - i) / (n - a)) : 1;
     return config.lightness[step] + delta * w;
   });
 
-  // 4. Strictly decreasing lightness, nudging free steps only.
+  // 4. Strictly decreasing lightness, never moving the anchor.
   const gap = config.minGap;
-  for (let i = a + 1; i <= n; i++) {
-    if (!isFixed(i) && L[i] > L[i - 1] - gap) L[i] = L[i - 1] - gap;
+  for (let i = a + 1; i <= n; i++) if (L[i] > L[i - 1] - gap) L[i] = L[i - 1] - gap;
+  for (let i = a - 1; i >= 0; i--) if (L[i] < L[i + 1] + gap) L[i] = L[i + 1] + gap;
+  // If that ran out of room at either end, space the steps between anchor and end evenly instead.
+  if (a > 0 && L[0] > config.maxLightness) {
+    const g = Math.min(gap, (config.maxLightness - Lb) / a);
+    for (let i = a - 1; i >= 0; i--) L[i] = Lb + (a - i) * g;
   }
-  for (let i = a - 1; i >= 0; i--) {
-    if (!isFixed(i) && L[i] < L[i + 1] + gap) L[i] = L[i + 1] + gap;
+  if (a < n && L[n] < config.minLightness) {
+    const g = Math.min(gap, (Lb - config.minLightness) / (n - a));
+    for (let i = a + 1; i <= n; i++) L[i] = Lb - (i - a) * g;
   }
-  // If pushing ran out of room at either end, space the free steps evenly instead.
-  const squeeze = (from: number, to: number, ceiling: number, dir: 1 | -1) => {
-    // dir = -1: steps from..to go lighter towards index 0 (top), bounded by `ceiling` (max L)
-    // dir = +1: steps go darker towards index n (bottom), bounded by `ceiling` (min L)
-    const startL = L[from];
-    const count = Math.abs(to - from);
-    if (count === 0) return;
-    const room = Math.abs(ceiling - startL);
-    const g = Math.min(gap, room / count);
-    for (let k = 1; k <= count; k++) {
-      const i = from + k * dir;
-      if (isFixed(i)) continue;
-      const limit = dir === -1 ? startL + k * g : startL - k * g;
-      const outOfBounds = dir === -1 ? L[i] > ceiling : L[i] < ceiling;
-      if (outOfBounds) L[i] = limit;
-    }
-  };
-  if (L[0] > config.maxLightness) squeeze(a, 0, config.maxLightness, -1);
-  if (L[n] < config.minLightness) squeeze(a, n, config.minLightness, 1);
 
   // 5 + 6. Chroma taper, constant hue, gamut mapping.
   const neutral = Cb < config.neutralChroma;
