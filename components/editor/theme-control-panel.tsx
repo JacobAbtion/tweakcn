@@ -1,3 +1,4 @@
+// Modified by Abtion: "Brand" tab (first, default).
 "use client";
 
 import { AlertCircle, Sparkle } from "lucide-react";
@@ -5,6 +6,7 @@ import React from "react";
 
 import { ChatInterface } from "@/components/editor/ai/chat-interface";
 import { ColorsTabContent } from "@/components/editor/colors-tab-content";
+import { BrandTabContent } from "@/features/brand-palettes/components/brand-tab-content";
 import ControlSection from "@/components/editor/control-section";
 import { FontPicker } from "@/components/editor/font-picker";
 import HslAdjustmentControls from "@/components/editor/hsl-adjustment-controls";
@@ -100,6 +102,7 @@ const ThemeControlPanel = ({ styles, currentMode, onChange }: ThemeControlPanelP
         >
           <HorizontalScrollArea className="mt-2 mb-1 px-4">
             <TabsList className="bg-background text-muted-foreground inline-flex w-fit items-center justify-center rounded-full px-0">
+              <TabsTriggerPill value="brand">Brand</TabsTriggerPill>
               <TabsTriggerPill value="colors">Colors</TabsTriggerPill>
               <TabsTriggerPill value="typography">Typography</TabsTriggerPill>
               <TabsTriggerPill value="other">Other</TabsTriggerPill>
@@ -114,6 +117,10 @@ const ThemeControlPanel = ({ styles, currentMode, onChange }: ThemeControlPanelP
               </TabsTriggerPill>
             </TabsList>
           </HorizontalScrollArea>
+
+          <TabsContent value="brand" className="mt-1 size-full overflow-hidden">
+            <BrandTabContent />
+          </TabsContent>
 
           <TabsContent value="colors" className="mt-1 size-full overflow-hidden">
             <ColorsTabContent currentStyles={currentStyles} updateStyle={updateStyle} updateStyles={updateStyles} />

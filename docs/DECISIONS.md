@@ -51,6 +51,14 @@ One line each: what, why.
 - **The edited theme is scoped to the preview area** — `features/preview-scope/PreviewThemeScope` replaces the preview `<section>` in `theme-preview-panel.tsx` and writes the theme's CSS variables onto it (own `applyScopedTheme`, because upstream `applyThemeToElement` also writes shadows and the `dark` class to the document root). Works because globals.css uses `@theme inline`, so utilities read `var(--primary)` at the element. The scope also sets `bg-background text-foreground font-sans tracking-normal`, which used to come from `body`.
 - **Portals: a themed, body-level portal container + React context** — `PreviewThemeScope` creates `<div data-preview-portal-root>` in `<body>`, applies the same theme to it, and provides it via context. The 12 portal-using `components/ui/*` files pass `container={usePreviewPortalContainer()}` to their Radix/vaul `Portal`. Outside the preview the context is `undefined`, so the editor's own popovers render into `<body>` as before. Chosen over a portal container *inside* the preview so overlays aren't clipped by the preview's `overflow: hidden` / stacking context.
 - **Verified:** primary, background and radius change only in the preview; dropdown, select, sheet (dialog) and tooltip opened from the preview are themed; the editor's colour popover stays neutral; light/dark both work.
+### Brand tab
+
+- **"Brand" is the first and default control tab** (`?tab=brand`, added to the tab list in `hooks/use-controls-tab-from-url.ts`). The inspector's "focus colour" used to jump to the default tab; it now jumps to `colors` explicitly (`store/color-control-focus-store.ts`).
+- **The tab is a list of sections** (`features/brand-palettes/components/brand-tab-content.tsx` → `BRAND_SECTIONS`): Palettes, then Roles. A future Fonts section is one more entry.
+- **Brand palettes section moved out of the Colors tab**; brand-step linking in the Colors tab's pickers stays.
+
+### Preview scoping (continued)
+
 - **Not themed any more (accepted):** the homepage preset showcase, `/themes/[id]` and the AI chat theme previews relied on the page-level theme and now render neutral. None are part of our workflow (the last two need DB/AI). Sonner toasts render at page level, so a toast triggered from the preview is neutral. — returns 404 when `NODE_ENV=production`.
 - **Names that are blocked:** Tailwind colour names (incl. black/white/transparent/current/inherit and the newer mauve/olive/mist/taupe), shadcn token roots (`primary`, `chart`, `sidebar`, …, so you never get `primary-500` next to `primary`), names not starting with a letter, and names ending in `-<number>` (would read like a step).
 - **Slugs transliterate Danish letters** (æ→ae, ø→o, å→a) and strip accents.
