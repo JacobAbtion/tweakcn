@@ -1,6 +1,8 @@
+// Modified by Abtion: brand palettes section and brand-step linking.
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { BrandPalettesSection } from "@/features/brand-palettes/components/brand-palettes-section";
 import { RefreshCw, Search, X } from "lucide-react";
 import ColorPicker from "@/components/editor/color-picker";
 import ControlSection from "@/components/editor/control-section";
@@ -224,6 +226,7 @@ export function ColorsTabContent({ currentStyles, updateStyle, updateStyles }: C
       </div>
 
       <ScrollArea className="min-h-0 flex-1 px-4">
+        {!search.trim() && <BrandPalettesSection />}
         {filteredGroups.length === 0 && (
           <p className="text-muted-foreground py-8 text-center text-xs">No colors found</p>
         )}
