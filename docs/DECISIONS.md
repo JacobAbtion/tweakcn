@@ -114,3 +114,41 @@ Tuned from the starting table, verified with `npx tsx features/brand-palettes/de
 ### Fixes
 
 - **Input borders follow the `input` token** — upstream `app/globals.css` had an unlayered `* { border-color: var(--color-border) }`. Unlayered CSS beats Tailwind v4's utility layer, so it overrode `border-input`, `border-ring` (focus) and `border-destructive` (invalid) on every component; editing `input` only changed the dark-mode field background (`dark:bg-input/30`). Removed that one declaration; the default border colour still comes from `@apply border-border` in `@layer base`, so components without an explicit border colour look the same. Affects the editor chrome too (its own inputs now use its neutral `input` value, as tweakcn's components intend).
+
+## App shell export and live theme check (2026-11-13)
+
+Requirements: `docs/theme-generator-krav.md`. Answers from Jacob: shared rules module, separate dark shadow
+opacity, Figma/DTCG postponed, fixes change lightness only and only errors, Fontsource list in the repo.
+
+- **Shared check files** live in `scripts/theme/` (same path as in the app shell): `check.mjs` (CLI, output
+  unchanged), `rules.mjs` (pure rules, new) and `lib.mjs` (unchanged copy). `check.mjs` and `rules.mjs` say at the
+  top that they are shared and must be kept identical. `rules.mjs` adds a `tokens` list (and `modeKey`) to each
+  result so the editor can show it next to the right token; the CLI ignores them. `npm run theme:check` added.
+- **Live check runs on the export itself:** the editor generates the App shell CSS, parses it with `lib.mjs` and
+  runs `rules.mjs` — the same steps as `theme:check` on the downloaded file, so they can't disagree (unit test).
+- **Generator-only font check:** `features/app-shell/fontsource-families.json` (2,103 families, regenerate with
+  `node scripts/update-fontsource-list.mjs`). Missing font = warning; static-only (e.g. Space Mono) = info.
+- **New code in `features/app-shell/`**; the code panel uses it for Tailwind v4. Tailwind v3 output is tweakcn's
+  (untouched, apart from the shadow alpha cap).
+- **App shell export is always OKLCH** (requirement: OKLCH preferred), so the format/version selects are hidden
+  for it. Colours with alpha keep it (`oklch(1 0 0 / 0.1)`); tweakcn's formatter dropped it.
+- **Font stacks:** custom family in double quotes + fallback for its kind (from its generic family, else the
+  token): sans `ui-sans-serif, system-ui, sans-serif`; serif `ui-serif, Georgia, Cambria, "Times New Roman",
+  Times, serif`; mono `ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+  monospace`. A pure system stack keeps its order, only quoting is normalised.
+- **`font-heading`** is an optional style key, shared across modes (in `COMMON_STYLES`). Exported only when it
+  differs from `font-sans`. Preview: h1–h3, card/dialog/sheet titles use `var(--font-heading, var(--font-sans))`.
+- **Shadows** in both v4 exports are built from the variables with `color-mix(in oklab, var(--shadow-color)
+  calc(var(--shadow-opacity) * N%), transparent)`; `shadow-2xl` uses `min(1, opacity × 2.5)`. The preview still
+  uses tweakcn's literal shadows, now capped at alpha 1.
+- **Dark shadow opacity:** `shadow-opacity` stays in `COMMON_STYLES` (so colour code paths treat it as a plain
+  value) but is listed in `PER_MODE_STYLES` (`config/theme.ts`); the control panel writes it to the current
+  mode only and the preview reads it per mode. Presets still set both modes alike.
+- **Radius:** `app/globals.css` uses the app shell's 7-step multipliers. This also affects the editor chrome
+  slightly (it uses the same utilities).
+- **Theme check section** is the third section of the Brand tab. UI labels in English like the rest of tweakcn;
+  the check messages are the shared rules' Danish text, so they read exactly like `theme:check`.
+- **Test theme fixer** (`features/app-shell/dev/test-themes.ts`): fixes one error at a time with the smallest
+  lightness change (step 0.0025), never breaking a passing check where the moved colour is the foreground;
+  surfaces before `*-foreground`; for `X-foreground on X` it tries both sides and takes the smaller change;
+  sidebar tokens that were copies of their base token follow its fix. Chroma only drops where sRGB requires it.

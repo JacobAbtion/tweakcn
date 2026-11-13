@@ -1,4 +1,12 @@
+// Modified by Abtion: "font-heading" is shared across modes; "shadow-opacity" is set per mode.
 import { ThemeEditorState } from "../types/editor";
+
+/**
+ * Non-colour keys that are nevertheless stored per mode (the control panel only writes the current
+ * mode). Still listed in COMMON_STYLES so colour code paths (HSL adjustments, CSS import, preview)
+ * keep treating them as plain values.
+ */
+export const PER_MODE_STYLES: string[] = ["shadow-opacity"];
 
 // these are common between light and dark modes
 // we can assume that light mode's value will be used for dark mode as well
@@ -6,6 +14,7 @@ export const COMMON_STYLES = [
   "font-sans",
   "font-serif",
   "font-mono",
+  "font-heading",
   "radius",
   "shadow-opacity",
   "shadow-blur",

@@ -1,4 +1,4 @@
-import { COMMON_STYLES, defaultThemeState } from "@/config/theme";
+import { COMMON_STYLES, PER_MODE_STYLES, defaultThemeState } from "@/config/theme";
 import type { ThemeEditorState } from "@/types/editor";
 import { applyStyleToElement } from "@/utils/apply-style-to-element";
 import { colorFormatter } from "@/utils/color-converter";
@@ -18,8 +18,14 @@ export function applyScopedTheme(themeState: ThemeEditorState, element: HTMLElem
   const current = { ...defaultThemeState.styles[mode], ...themeState.styles[mode] };
 
   for (const [key, value] of Object.entries(light)) {
-    if (isCommon(key) && typeof value === "string") applyStyleToElement(element, key, value);
+    if (isCommon(key) && typeof value === "string") {
+      // Per-mode keys (shadow opacity) come from the current mode.
+      const own = PER_MODE_STYLES.includes(key) ? current[key as keyof typeof current] : value;
+      applyStyleToElement(element, key, typeof own === "string" ? own : value);
+    }
   }
+  // Optional heading font: without it, --font-heading falls back to --font-sans in CSS.
+  if (!light["font-heading"]) element.style.removeProperty("--font-heading");
   for (const [key, value] of Object.entries(current)) {
     if (!isCommon(key) && typeof value === "string") {
       applyStyleToElement(element, key, colorFormatter(value, "hsl", "4"));

@@ -5,13 +5,15 @@
 - [x] Phase 0 — Discovery (`docs/ARCHITECTURE-NOTES.md`)
 - [x] Phase 1 — Brand palettes — done, reviewed
 - [x] Phase 1b — Preview-only theming, Brand tab, Roles — **done, waiting for Jacob's review**
-- [ ] Phase 2 — Exports (not started; waits for Jacob's review of Phase 1)
+- [ ] Phase 2 — Exports: **App shell CSS export + live theme check done** (below); registry with primitives and
+  Figma/DTCG not started (Figma postponed to its own session, see IDEAS.md)
 
 ## Checks
 
 - Typecheck: `npx tsc --noEmit`
 - Lint: `npm run lint` (upstream folders) **and** `npx eslint features app/dev` (`next lint` doesn't scan `features/`)
-- Tests: `npm test` (Node test runner via tsx; 62 tests in `features/brand-palettes/*.test.ts`)
+- Tests: `npm test` (Node test runner via tsx; 79 tests in `features/**/*.test.ts`)
+- Theme check (same as the app shell): `npm run theme:check <file.css>`
 - Run: `npm run dev` → `/editor/theme`; scale lab at `/dev/brand-scales`
 
 ## Phase 1 plan and status
@@ -41,6 +43,19 @@
    Primary re-colours buttons, charts, ring and sidebar; a manual edit survives a role swap and resets to Auto.
    Rule report: `npx tsx features/brand-palettes/dev/debug-roles.ts`.
 
+## App shell export and live check (requirements: `docs/theme-generator-krav.md`)
+
+1. [x] `scripts/theme/check.mjs` split into CLI + `rules.mjs` (shared with the app shell repo; same output).
+2. [x] Code panel: "App shell" (default: only `:root`/`.dark`, OKLCH, Download as theme.css) and "Standalone"
+   (full globals.css with the app shell's `@theme inline`). Quoted font stacks, optional `--font-heading`,
+   shadows from `--shadow-color`/`--shadow-opacity` with alpha ≤ 1, separate dark shadow opacity.
+3. [x] Preview: 7-step radius multipliers, heading font on titles; tracking already via `--letter-spacing`.
+4. [x] Live check: notes under each colour token (light and dark), fonts in Typography, shadows in Other,
+   "Theme check" section in the Brand tab (click → mode + token), warning banner in the code panel.
+   Verified in the browser with test-1: same 9 errors as `theme:check`, radius values match the table.
+5. [ ] Test themes: fixer ready (`npx tsx features/app-shell/dev/test-themes.ts`); **waiting for Jacob's OK on
+   the before/after list**, then `--write` → `exports/`, run `theme:check`, commit and push.
+
 ## Upstream files touched (all marked "Modified by Abtion")
 
 - `types/editor.ts` — optional brand fields on `ThemeEditorState`
@@ -52,7 +67,12 @@
 - `components/editor/theme-preview-panel.tsx` — `PreviewThemeScope` around the preview
 - `components/ui/{alert-dialog,context-menu,dialog,drawer,dropdown-menu,hover-card,menubar,popover,revola,select,sheet,tooltip}.tsx` — portal container from preview context
 - `components/editor/color-selector-popover.tsx` — Brand group at the top
-- `README.md` — fork notice; `package.json` — `test` script
+- `README.md` — fork notice; `package.json` — `test` and `theme:check` scripts
+- `types/theme.ts` (optional `font-heading`), `config/theme.ts` (`PER_MODE_STYLES`, `font-heading` in COMMON_STYLES),
+  `utils/shadows.ts` (alpha cap), `app/globals.css` (radius scale, `--font-heading`, heading rule),
+  `components/editor/code-panel.tsx` (export variants, check banner, download),
+  `components/editor/theme-control-panel.tsx` (heading font, per-mode opacity, check notes),
+  `components/dynamic-font-loader.tsx` (loads the heading font)
 
 ## Next (Phase 2, after review)
 
