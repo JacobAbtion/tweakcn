@@ -1,6 +1,11 @@
+// Modified by Abtion: brand-step linking, role status (Auto/Manual) and theme-check notes in colour pickers.
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { RoleStatus } from "@/features/brand-palettes/components/role-status";
+import { CheckNotes } from "@/features/app-shell/components/check-notes";
+import { useThemeCheck } from "@/features/app-shell/use-theme-check";
+import { useBrandTokenLinks, useTokenRoleStatuses } from "@/features/brand-palettes/use-brand-palettes";
 import { RefreshCw, Search, X } from "lucide-react";
 import ColorPicker from "@/components/editor/color-picker";
 import ControlSection from "@/components/editor/control-section";
@@ -141,6 +146,16 @@ interface ColorsTabContentProps {
 export function ColorsTabContent({ currentStyles, updateStyle, updateStyles }: ColorsTabContentProps) {
   const [search, setSearch] = useState("");
   const [sidebarSyncEnabled, setSidebarSyncEnabled] = useState(false);
+  const { liveRefs, linkTokens } = useBrandTokenLinks();
+  const { statuses, resetToAuto } = useTokenRoleStatuses();
+  const { byToken: checkIssues } = useThemeCheck();
+  const linkBrandRef = useCallback(
+    (key: keyof ThemeStyleProps, ref: string) => {
+      const sidebarKey = sidebarSyncEnabled ? BASE_TO_SIDEBAR_MAP[key] : undefined;
+      return linkTokens(sidebarKey ? [key, sidebarKey] : [key], ref);
+    },
+    [linkTokens, sidebarSyncEnabled]
+  );
 
   // Sync all sidebar colors to their base counterparts in a single batch
   const syncSidebarToBase = useCallback(() => {
@@ -270,6 +285,18 @@ export function ColorsTabContent({ currentStyles, updateStyle, updateStyles }: C
                 color={currentStyles[color.key] as string}
                 onChange={(value) => wrappedUpdateStyle(color.key, value as ThemeStyleProps[typeof color.key])}
                 label={color.label}
+                brandRef={liveRefs[color.key]}
+                onBrandRef={(ref) => linkBrandRef(color.key, ref)}
+                status={
+                  statuses[color.key] || checkIssues[color.key] ? (
+                    <>
+                      {statuses[color.key] && (
+                        <RoleStatus status={statuses[color.key]} onReset={() => resetToAuto(color.key)} />
+                      )}
+                      <CheckNotes tokens={[color.key]} className="max-w-32" />
+                    </>
+                  ) : undefined
+                }
               />
             ))}
           </ControlSection>

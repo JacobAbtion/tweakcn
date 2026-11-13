@@ -1,3 +1,4 @@
+// Modified by Abtion: optional "font-heading" token (app shell export).
 import { theme } from "@/db/schema";
 import { InferSelectModel } from "drizzle-orm";
 import { z } from "zod";
@@ -54,6 +55,10 @@ export const themeStylePropsSchema = z.object({
     ),
   "font-serif": z.string().describe("The preferred serif font family."),
   "font-mono": z.string().describe("The preferred monospace font family. Used for code blocks."),
+  "font-heading": z
+    .string()
+    .optional()
+    .describe("Optional font for headings. Leave empty to use the sans font."),
   radius: z
     .string()
     .describe("The global border-radius for components. Use 0rem for sharp corners."),
