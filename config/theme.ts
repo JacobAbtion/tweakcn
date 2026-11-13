@@ -1,5 +1,7 @@
-// Modified by Abtion: "font-heading" is shared across modes; "shadow-opacity" is set per mode.
+// Modified by Abtion: "font-heading" is shared across modes; "shadow-opacity" is set per mode; new themes start
+// from the app shell's default theme (the editor chrome keeps tweakcn's neutral theme below).
 import { ThemeEditorState } from "../types/editor";
+import { appShellDarkStyles, appShellLightStyles } from "../features/app-shell/default-theme";
 
 /**
  * Non-colour keys that are nevertheless stored per mode (the control panel only writes the current
@@ -131,8 +133,8 @@ export const defaultDarkThemeStyles = {
 // Default theme state
 export const defaultThemeState: ThemeEditorState = {
   styles: {
-    light: defaultLightThemeStyles,
-    dark: defaultDarkThemeStyles,
+    light: appShellLightStyles,
+    dark: appShellDarkStyles,
   },
   currentMode:
     typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches

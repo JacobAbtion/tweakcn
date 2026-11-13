@@ -162,6 +162,35 @@ export function fixErrors(input: ThemeStyles): { styles: ThemeStyles; changes: C
   return { styles, changes, unfixed: fails(styles) };
 }
 
+/**
+ * Hand-picked values approved by Jacob, applied after the automatic fixes. These may change hue.
+ * test-2 light: chart-4 was a lightness-shifted copy of grey chart-2 (still indistinguishable in a chart);
+ * a dusty blue at the dark theme's accent hue, same lightness as the other charts.
+ */
+export const OVERRIDES: Record<number, Partial<Record<Mode, Record<string, string>>>> = {
+  2: { light: { "chart-4": "oklch(0.55 0.1 232)" } },
+};
+
+export function fixTestTheme(n: number, original: ThemeStyles) {
+  const fixed = fixErrors(original);
+  let styles = fixed.styles;
+  const changes = [...fixed.changes];
+  for (const [mode, tokens] of Object.entries(OVERRIDES[n] ?? {}) as [Mode, Record<string, string>][]) {
+    for (const [token, after] of Object.entries(tokens)) {
+      const prev = changes.find((c) => c.mode === mode && c.token === token);
+      if (prev) {
+        prev.after = after;
+        prev.reason += "; ny farvetone (godkendt undtagelse)";
+      } else {
+        const before = original[mode][token as keyof ThemeStyleProps] as string;
+        changes.push({ mode, token, before, after, reason: "ny farvetone (godkendt undtagelse)" });
+      }
+      styles = { ...styles, [mode]: { ...styles[mode], [token]: after } };
+    }
+  }
+  return { styles, changes, unfixed: fails(styles) };
+}
+
 // --- CLI ----------------------------------------------------------------------------------------
 
 if (process.argv[1]?.endsWith("test-themes.ts")) {
@@ -170,7 +199,7 @@ if (process.argv[1]?.endsWith("test-themes.ts")) {
     const css = readFileSync(resolve(ROOT, `themes/test-${n}.css`), "utf8");
     const original = stylesFromCss(css);
     const before = runThemeCheck({ styles: original });
-    const { styles, changes, unfixed } = fixErrors(original);
+    const { styles, changes, unfixed } = fixTestTheme(n, original);
     const after = runThemeCheck({ styles });
     const count = (rs: CheckResult[], s: string) => rs.filter((r) => r.status === s).length;
 

@@ -152,3 +152,16 @@ opacity, Figma/DTCG postponed, fixes change lightness only and only errors, Font
   lightness change (step 0.0025), never breaking a passing check where the moved colour is the foreground;
   surfaces before `*-foreground`; for `X-foreground on X` it tries both sides and takes the smaller change;
   sidebar tokens that were copies of their base token follow its fix. Chroma only drops where sRGB requires it.
+- **test-2 chart-4 (Jacob's exception):** after the lightness fix it was still a grey next to grey chart-2.
+  Hand-picked `oklch(0.55 0.1 232)` (dusty blue, the dark theme's accent hue, same lightness as the other
+  charts): 4.33:1 on card, ΔE ≥ 0.11 to every other chart colour. Stored in `OVERRIDES` in
+  `features/app-shell/dev/test-themes.ts`.
+- **Default theme = the app shell's default theme** (`themes/app-shell-default.css` → `features/app-shell/
+  default-theme.ts`, used by `defaultThemeState`: new themes, the "Default" preset, Reset). The editor chrome keeps
+  tweakcn's neutral theme (`defaultLight/DarkThemeStyles`, untouched). Fonts stored as `"Geist", …` without
+  "Geist Variable" (theme:apply adds it). The preview now keeps alpha on colours (dark borders are
+  `oklch(1 0 0 / 10%)`), which tweakcn's formatter dropped.
+- **Polar is optional:** without `POLAR_WEBHOOK_SECRET` the webhook route answers 503 instead of throwing at module
+  load (which failed `next build`). The other Polar code didn't throw at load. With the secret, unchanged.
+- **`prebuild` uses `npm run`** instead of `pnpm` (pnpm isn't installed; npm works everywhere). The generated
+  `public/r/v0/` is now in `.gitignore` next to `public/r/themes`.

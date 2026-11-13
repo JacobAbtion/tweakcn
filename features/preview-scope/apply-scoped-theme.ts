@@ -1,7 +1,13 @@
-import { COMMON_STYLES, PER_MODE_STYLES, defaultThemeState } from "@/config/theme";
+import {
+  COMMON_STYLES,
+  PER_MODE_STYLES,
+  defaultDarkThemeStyles,
+  defaultLightThemeStyles,
+  defaultThemeState,
+} from "@/config/theme";
+import { formatColor } from "@/features/app-shell/generate-css";
 import type { ThemeEditorState } from "@/types/editor";
 import { applyStyleToElement } from "@/utils/apply-style-to-element";
-import { colorFormatter } from "@/utils/color-converter";
 import { getShadowMap } from "@/utils/shadows";
 
 const isCommon = (key: string) => (COMMON_STYLES as readonly string[]).includes(key);
@@ -28,7 +34,8 @@ export function applyScopedTheme(themeState: ThemeEditorState, element: HTMLElem
   if (!light["font-heading"]) element.style.removeProperty("--font-heading");
   for (const [key, value] of Object.entries(current)) {
     if (!isCommon(key) && typeof value === "string") {
-      applyStyleToElement(element, key, colorFormatter(value, "hsl", "4"));
+      // formatColor keeps alpha (e.g. dark borders `oklch(1 0 0 / 10%)`); tweakcn's formatter drops it.
+      applyStyleToElement(element, key, formatColor(value, "hsl"));
     }
   }
   for (const [name, value] of Object.entries(getShadowMap(themeState))) {
@@ -40,7 +47,8 @@ export function applyScopedTheme(themeState: ThemeEditorState, element: HTMLElem
 export function neutralEditorState(themeState: ThemeEditorState): ThemeEditorState {
   return {
     ...themeState,
-    styles: defaultThemeState.styles,
+    // tweakcn's neutral theme, not the generator's default for new themes (the app shell theme).
+    styles: { light: defaultLightThemeStyles, dark: defaultDarkThemeStyles },
     hslAdjustments: defaultThemeState.hslAdjustments,
   };
 }

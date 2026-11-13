@@ -9,7 +9,8 @@ import type { ThemeStyles } from "@/types/theme";
 
 import { stylesFromCss, fixErrors } from "./dev/test-themes";
 import { fontsourceAvailability, formatFontStack } from "./font-stack";
-import { generateTailwindV4Css, headingFont } from "./generate-css";
+import { COLOR_KEYS, generateTailwindV4Css, headingFont } from "./generate-css";
+import { differenceEuclidean, parse } from "culori";
 import { runThemeCheck } from "./theme-check";
 
 const withStyles = (styles: ThemeStyles) => ({ ...defaultThemeState, styles });
@@ -142,5 +143,23 @@ describe("test theme fixes", () => {
     const { styles } = fixErrors(original);
     assert.equal(styles.light.destructive, original.light.destructive);
     assert.equal(styles.dark.destructive, original.dark.destructive);
+  });
+});
+
+describe("default theme", () => {
+  it("is the app shell's default theme and passes theme:check without errors", () => {
+    const fails = runThemeCheck(defaultThemeState).filter((r) => r.status === "fail");
+    assert.deepEqual(fails, []);
+    const shell = parseTheme(readFileSync("themes/app-shell-default.css", "utf8"));
+    const ours = parseTheme(generateTailwindV4Css(defaultThemeState, "app-shell"));
+    const deltaE = differenceEuclidean("oklab");
+    for (const block of ["root", "dark"] as const) {
+      for (const key of COLOR_KEYS) {
+        const a = parse(shell[block].get(key))!;
+        const b = parse(ours[block].get(key))!;
+        assert.ok(deltaE(a, b) < 0.001 && Math.abs((a.alpha ?? 1) - (b.alpha ?? 1)) < 0.001, `${block} ${key}`);
+      }
+      assert.equal(ours[block].get("radius"), shell[block].get("radius"));
+    }
   });
 });

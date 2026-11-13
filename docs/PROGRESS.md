@@ -12,7 +12,7 @@
 
 - Typecheck: `npx tsc --noEmit`
 - Lint: `npm run lint` (upstream folders) **and** `npx eslint features app/dev` (`next lint` doesn't scan `features/`)
-- Tests: `npm test` (Node test runner via tsx; 79 tests in `features/**/*.test.ts`)
+- Tests: `npm test` (Node test runner via tsx; 80 tests in `features/**/*.test.ts`)
 - Theme check (same as the app shell): `npm run theme:check <file.css>`
 - Run: `npm run dev` → `/editor/theme`; scale lab at `/dev/brand-scales`
 
@@ -53,8 +53,10 @@
 4. [x] Live check: notes under each colour token (light and dark), fonts in Typography, shadows in Other,
    "Theme check" section in the Brand tab (click → mode + token), warning banner in the code panel.
    Verified in the browser with test-1: same 9 errors as `theme:check`, radius values match the table.
-5. [ ] Test themes: fixer ready (`npx tsx features/app-shell/dev/test-themes.ts`); **waiting for Jacob's OK on
-   the before/after list**, then `--write` → `exports/`, run `theme:check`, commit and push.
+5. [x] Test themes fixed (approved list + chart-4 exception) and exported to `exports/test-1..3.css`
+   (`npx tsx features/app-shell/dev/test-themes.ts --write`): 0 errors in `theme:check` (7 / 5 / 3 warnings).
+6. [x] Default theme = the app shell's default theme (0 errors); editor chrome unchanged.
+7. [x] `npm run build` and `npm run dev` work without `POLAR_WEBHOOK_SECRET` (and without pnpm).
 
 ## Upstream files touched (all marked "Modified by Abtion")
 
