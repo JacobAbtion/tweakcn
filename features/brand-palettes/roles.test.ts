@@ -10,11 +10,16 @@ import {
   getTokenRoleStatus,
   resetAllToAuto,
   resetTokenToAuto,
+  forgetRoleTracking,
   setWhiteBackground,
   syncRoles,
   type RoleState,
 } from "./roles";
 import { toHex } from "./scale";
+import { parseTheme } from "@/scripts/theme/lib.mjs";
+import { checkTheme } from "@/scripts/theme/rules.mjs";
+import { generateTailwindV4Css } from "@/features/app-shell/generate-css";
+import { defaultThemeState as editorDefaults } from "@/config/theme";
 
 const fresh = (): RoleState => {
   let s: RoleState = {
@@ -43,13 +48,27 @@ const pal = (s: RoleState, id: string) => s.brandPalettes!.find((p) => p.id === 
 const contrast = (a: unknown, b: unknown) => wcagContrast(String(a), String(b));
 
 describe("role rules", () => {
-  it("unassigned roles leave tokens exactly as they are", () => {
+  it("unassigned roles leave tokens exactly as they are (except Destructive)", () => {
     const s0 = fresh();
     const s = assignRole(s0, "neutral", "grey");
     assert.equal(s.styles.light.primary, s0.styles.light.primary);
-    assert.equal(s.styles.dark["destructive"], s0.styles.dark["destructive"]);
     assert.equal(s.styles.light["chart-2"], s0.styles.light["chart-2"]);
     assert.notEqual(s.styles.light.background, s0.styles.light.background);
+  });
+
+  it("unassigned Destructive follows the built-in red, without a brand reference", () => {
+    const s = withRoles();
+    const status = getTokenRoleStatus(s, "dark", "destructive");
+    assert.equal(status?.kind, "auto");
+    assert.match((status as { label: string }).label, /^Default red \d+$/);
+    assert.equal(s.brandRefs?.dark["destructive"], undefined);
+    assert.notEqual(s.styles.dark["destructive"], fresh().styles.dark["destructive"]);
+  });
+
+  it("no roles assigned: Destructive is left alone too", () => {
+    const s0 = fresh();
+    const s = syncRoles({ ...s0, brandRoles: { assignments: {}, auto: { light: {}, dark: {} }, manual: { light: [], dark: [] } } });
+    assert.equal(s.styles.dark["destructive"], s0.styles.dark["destructive"]);
   });
 
   it("follows the step table and stores references", () => {
@@ -70,10 +89,10 @@ describe("role rules", () => {
     assert.equal(s.brandRefs!.light.primary, "forest-green-900");
   });
 
-  it("primary in dark mode moves lighter until it has 3:1 against the background", () => {
+  it("primary in dark mode moves lighter until it has 4.5:1 against the background", () => {
     const s = withRoles(); // forest green anchors at 900: far too dark on a dark background
     const ratio = contrast(s.styles.dark.primary, s.styles.dark.background);
-    assert.ok(ratio >= 3, `ratio ${ratio}`);
+    assert.ok(ratio >= 4.5, `ratio ${ratio}`);
     // nearest lighter step that passes: the step just darker than it must fail
     const ref = s.brandRefs!.dark.primary!;
     const stepNum = Number(ref.split("-").pop());
@@ -81,7 +100,7 @@ describe("role rules", () => {
     const darker = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950][
       [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].indexOf(stepNum) + 1
     ] as 900;
-    assert.ok(contrast(pal(s, "green").steps[darker].value, s.styles.dark.background) < 3);
+    assert.ok(contrast(pal(s, "green").steps[darker].value, s.styles.dark.background) < 4.5);
   });
 
   it("keeps the anchor in dark mode when it already has 3:1", () => {
@@ -176,7 +195,7 @@ describe("auto vs manual", () => {
   it("tokens are Auto with a readable label", () => {
     const s = withRoles();
     assert.deepEqual(getTokenRoleStatus(s, "light", "secondary"), { kind: "auto", label: "Secondary 100", warning: undefined });
-    assert.equal(getTokenRoleStatus(s, "light", "destructive"), null); // role unassigned
+    assert.equal(getTokenRoleStatus(fresh(), "light", "secondary"), null); // no roles at all
   });
 
   it("swapping the primary palette re-colours every Auto primary token in both modes", () => {
@@ -259,5 +278,88 @@ describe("auto vs manual", () => {
   it("syncRoles is idempotent", () => {
     const s = withRoles();
     assert.equal(syncRoles(s), s);
+  });
+});
+
+// The rules must produce themes that pass the app shell's own theme:check (scripts/theme/rules.mjs).
+describe("role rules pass the app shell theme check", () => {
+  const cases: [string, string, string][] = [
+    ["lime on teal grey", "#C6E85B", "#2F5D55"],
+    ["dark green on warm grey", "#0B3D2E", "#78716C"],
+    ["blue on cool grey", "#1D4ED8", "#64748B"],
+    ["pale yellow on neutral", "#F5E6A8", "#737373"],
+  ];
+  for (const [name, primary, neutral] of cases) {
+    for (const destructive of [true, false]) {
+      it(`${name}${destructive ? "" : ", Destructive unassigned"}`, () => {
+        let s = fresh();
+        s = addPalette(s, createPalette("P", primary, "p"));
+        s = addPalette(s, createPalette("N", neutral, "n"));
+        s = assignRole(s, "neutral", "n");
+        s = assignRole(s, "primary", "p");
+        s = assignRole(s, "secondary", "orange");
+        if (destructive) s = assignRole(s, "destructive", "red");
+        const css = generateTailwindV4Css({ ...editorDefaults, styles: s.styles } as never, "app-shell");
+        const fails = checkTheme(parseTheme(css), name)
+          .filter((r: { status: string }) => r.status === "fail")
+          .map((r: { mode: string; check: string; detail: string }) => `${r.mode} ${r.check} ${r.detail}`);
+        assert.deepEqual(fails, []);
+      });
+    }
+  }
+});
+
+describe("switching preset", () => {
+  it("brand roles apply again on top of the new preset's styles", () => {
+    const s0 = withRoles();
+    const lime = s0.styles.light.primary;
+    const preset = {
+      light: { ...defaultThemeState.styles.light, primary: "#8839ef", radius: "1rem" },
+      dark: { ...defaultThemeState.styles.dark, primary: "#cba6f7" },
+    };
+    // without forgetting, every role token is taken as a manual edit and stays on the preset
+    const stuck = syncRoles({ ...s0, styles: preset });
+    assert.equal(stuck.styles.light.primary, "#8839ef");
+    const s = syncRoles(forgetRoleTracking({ ...s0, styles: preset }));
+    assert.equal(s.styles.light.primary, lime);
+    assert.equal(s.styles.light.radius, "1rem");
+    assert.deepEqual(s.brandRoles!.manual, { light: [], dark: [] });
+  });
+});
+
+describe("destructive stays recognisably red", () => {
+  it("never walks past 800 (light) / 200 (dark), and warns instead", () => {
+    let s = fresh();
+    s = addPalette(s, createPalette("Teal", "#2F5D55", "teal"));
+    s = addPalette(s, createPalette("Lime", "#C6E85B", "lime"));
+    s = assignRole(s, "neutral", "teal");
+    s = assignRole(s, "primary", "lime");
+    const red = createPalette("Red", "#DC2626", "x");
+    const allowed = (mode: "light" | "dark") =>
+      (mode === "light" ? [600, 700, 800] : [400, 300, 200]).map((n) => red.steps[n as 200].value);
+    for (const mode of ["light", "dark"] as const) {
+      assert.ok(allowed(mode).includes(String(s.styles[mode].destructive)), `${mode}: ${s.styles[mode].destructive}`);
+    }
+  });
+});
+
+describe("brand and primary", () => {
+  it("brand keeps the exact brand colour; primary darkens until it reads as text", () => {
+    let s = fresh();
+    s = addPalette(s, createPalette("Lime", "#C6E85B", "lime"));
+    s = assignRole(s, "neutral", "grey");
+    s = assignRole(s, "primary", "lime");
+    const lime = pal(s, "lime");
+    for (const mode of ["light", "dark"] as const) {
+      assert.equal(s.styles[mode].brand, lime.steps[lime.anchorStep].value, mode);
+      assert.ok(contrast(s.styles[mode]["brand-foreground"], s.styles[mode].brand) >= 4.5, `${mode} brand fg`);
+      assert.ok(contrast(s.styles[mode].primary, s.styles[mode].background) >= 4.5, `${mode} primary`);
+    }
+    assert.notEqual(s.styles.light.primary, s.styles.light.brand);
+  });
+
+  it("no primary role: brand is not set, so the app shell falls back to primary", () => {
+    const s = assignRole(fresh(), "neutral", "grey");
+    assert.equal(s.styles.light.brand, undefined);
   });
 });
